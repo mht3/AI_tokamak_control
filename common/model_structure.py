@@ -1,5 +1,11 @@
 import json, zipfile
 import numpy as np
+
+# ignore tf gpu warnings
+import logging, os
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 from tensorflow.keras import models, layers
 
 class k2rz():
