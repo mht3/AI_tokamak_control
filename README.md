@@ -8,9 +8,9 @@ Forked from [AI Tokamak Control](https://github.com/jaem-seo/AI_tokamak_control)
 - I recommend you to see [KSTAR Tokamak Simulator](https://github.com/jaem-seo/KSTAR_tokamak_simulator) first. The manual control of it is replaced by AI here.
 
 # Installation
-- You can install by
+- You can install by 
 ```
-$ git clone (https://github.com/mht3/AI_tokamak_control.git
+$ git clone https://github.com/mht3/AI_tokamak_control.git
 $ cd AI_tokamak_control
 ```
 
