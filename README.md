@@ -10,7 +10,7 @@ Forked from [AI Tokamak Control](https://github.com/jaem-seo/AI_tokamak_control)
 # Installation
 - You can install by
 ```
-$ git clone https://github.com/jaem-seo/AI_tokamak_control.git
+$ git clone (https://github.com/mht3/AI_tokamak_control.git
 $ cd AI_tokamak_control
 ```
 
