@@ -40,7 +40,7 @@ from common.setting import *
 # Setting
 wide = True
 base_path = os.path.abspath(os.path.dirname(sys.argv[0]))
-kstar_img_path = base_path + '/images/insideKSTAR.jpg'
+kstar_img_path = os.path.join(base_path, 'images', 'insideKSTAR.jpg')
 max_models = 10
 init_models = 1
 max_shape_models = 4
@@ -61,11 +61,14 @@ ec_freq = 105.e9
 rcParamsSetting(dpi)
 
 # Path of weights
-lstm_model_path = base_path + '/weights/lstm/v220505/'
-nn_model_path   = base_path + '/weights/nn/'
-bpw_model_path  = base_path + '/weights/bpw/'
-k2rz_model_path = base_path + '/weights/k2rz/'
-rl_model_path   = base_path + '/weights/rl/rt_control/3frame_v220505/best_model.zip' if wide else base_path + '/weights/rl/rt_control/3frame/best_model1.zip'
+lstm_model_path = os.path.join(base_path, 'weights', 'lstm', 'v220505')
+nn_model_path   = os.path.join(base_path, 'weights', 'nn')
+bpw_model_path  = os.path.join(base_path, 'weights', 'bpw')
+k2rz_model_path = os.path.join(base_path, 'weights', 'k2rz')
+if wide:
+    rl_model_path = os.path.join(base_path, 'weights', 'rl', 'rt_control', '3frame_v220505', 'best_model.zip')
+else:
+    rl_model_path = os.path.join(base_path, 'weights', 'rl', 'rt_control', '3frame_v220505', 'best_model1.zip')
 
 # RL setting
 if wide:

@@ -12,7 +12,7 @@ class k2rz():
     def __init__(self, model_path, n_models=1, ntheta=64, closed_surface=True, xpt_correction=True):
         self.nmodels, self.ntheta = n_models, ntheta
         self.closed_surface, self.xpt_correction = closed_surface, xpt_correction
-        self.models = [models.load_model(model_path + f'/best_model{i}', compile=False) for i in range(self.nmodels)]
+        self.models = [models.load_model(os.path.join(model_path, f'best_model{i}'), compile=False) for i in range(self.nmodels)]
 
     def set_inputs(self, ip, bt, βp, rin, rout, k, du, dl):
         self.x = np.array([ip, bt, βp, rin, rout, k, du, dl])
