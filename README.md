@@ -8,10 +8,26 @@ Forked from [AI Tokamak Control](https://github.com/jaem-seo/AI_tokamak_control)
 - I recommend you to see [KSTAR Tokamak Simulator](https://github.com/jaem-seo/KSTAR_tokamak_simulator) first. The manual control of it is replaced by AI here.
 
 # Installation
-- You can install by 
+- You can install by
 ```
-$ git clone https://github.com/mht3/AI_tokamak_control.git
-$ cd AI_tokamak_control
+git clone https://github.com/mht3/AI_tokamak_control.git
+cd AI_tokamak_control
+```
+## Conda Environment
+
+First, create the fusion environment with Python 3.8.
+```
+conda create -n fusion python=3.8
+```
+
+Activate the environment
+```
+conda activate fusion
+```
+
+Install the required packages
+```
+pip install -r requirements.txt
 ```
 
 # 1. Target arrival in 4 s interval
