@@ -51,7 +51,7 @@ plot_length = 40
 t_delay = 0.05
 steady_model = False
 lookback = 3
-show_inputs = False
+show_inputs = True
 
 # Fixed setting
 year_in = 2021
@@ -100,7 +100,7 @@ output_params1 = ['βp','wmhd']
 output_params2 = ['βn','βp','h89','h98','q95','q0','li','wmhd']
 dummy_params = ['Ip [MA]', 'Elon. [-]', 'Up.Tri. [-]', 'Lo.Tri. [-]', 'In.Mid. [m]', 'Out.Mid. [m]', 'Pnb1a [MW]','Pnb1b [MW]','Pnb1c [MW]']
 
-# Targets
+# Targets 
 target_params = ['βp','q95','li']
 if wide:
     target_mins   = [0.8, 4.0,0.80 ]
