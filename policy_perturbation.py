@@ -11,11 +11,28 @@ from common.model_structure import *
 from common.wall import *
 from common.setting import *
 
+
+### Needed for graphing:
+
+# (under "RL setting" in original script)
+low_target  = [1.0, 4.0]
+high_target = [2.0, 7.0]
+target_mins, target_maxs = low_target, high_target
+
+# (under "Setting" in original script)
+dpi = 1
+decimals = np.log10(1000)
+
+
+def i2f(i,decimals=decimals):
+    return float(i/10**decimals)
+
+
 class ModelTester:
     def __init__(self, rl_model_path, nn_model_path, lstm_model_path, bpw_model_path,
                  target_params, target_init, input_params, input_init,
                  output_params0, output_params1, output_params2,
-                 verbose=True):
+                 dummy_params, verbose=True):
         self.model = self.load_agent(rl_model_path, verbose=verbose)
         # kstar_lstm
         self.load_sim(nn_model_path, lstm_model_path, bpw_model_path, verbose=verbose)
@@ -37,6 +54,8 @@ class ModelTester:
         self.output_params0 = output_params0
         self.output_params1 = output_params1
         self.output_params2 = output_params2
+        self.dummy_params = dummy_params
+
 
         self.outputs = {}
         for p in output_params2:
@@ -45,9 +64,15 @@ class ModelTester:
         self.input_init = input_init
         # plot length (4 seconds in total)
         self.plot_length = 40
+        self.time = np.linspace(-0.1 * (self.plot_length - 1), 0, self.plot_length) # negative time enables real-time-graph in GUI, we will use same convention here
+
         # If false, an average is taken for data driven simulator outputs
         self.steady = False
         self.first = True
+
+        self.dummy = {}
+        for p in dummy_params:
+            self.dummy[p] = [0.]
 
 
     def load_sim(self, nn_model_path, lstm_model_path, bpw_model_path,
@@ -160,7 +185,15 @@ class ModelTester:
             elif len(self.outputs[output_param]) == 1:
                 self.outputs[output_param][0] = y[i]
             self.outputs[output_param].append(y[i])
-
+        """
+        # Store dummy parameters
+        for p in dummy_params:
+            if len(self.dummy[p]) >= self.plot_length:
+                del self.dummy[p][0]
+            elif len(self.dummy[p]) == 1:
+                self.dummy[p][0] = i2f(self.inputSliderDict[p].value())
+            self.dummy[p].append(i2f(self.inputSliderDict[p].value()))
+        """
         if not self.first:
             for i,target_param in enumerate(target_params):
                 if len(self.targets[target_param]) >= self.plot_length:
@@ -224,11 +257,76 @@ def policy_noise_injection(env):
     env.step()
 
     # print actions (code calls these inputs)
+    print("env.inputs: ")
     print(env.inputs)
 
     # print states (includes history)
     # can use env.outputs and env.targets for plotting code (hopefully)
+    print("env.outputs: ")
     print(env.outputs)
+
+
+def make_graphs(env):
+    # making basic graphs for now (removed limits, legends, ticks from original code)
+    # ignoring "dpi" (original code used this, but it blows up the scale of the graphs to make lines way too big)
+
+    ts = env.time[-len(env.outputs['βn']):]
+
+    #print("env.outputs['βn']: ", env.outputs['βn'])
+    #print("env.time: ", env.time)
+    print("ts: ", ts)
+    print("env.outputs['βp']: ", env.outputs['βp'])
+    print("env.dummy: ", env.dummy)
+
+    ##############
+    # Plotting operation trajectory
+    ##############
+    """
+    plt.subplot(3,3,2)
+    pnb = np.sum([env.dummy['Pnb1a [MW]'], env.dummy['Pnb1b [MW]'], env.dummy['Pnb1c [MW]']], axis=0)
+    plt.title('AI operation trajectory')
+    plt.plot(ts,env.dummy['Ip [MA]'],'k',linewidth=2*(100/dpi),label='Ip [MA]')
+    plt.step(ts,0.1*pnb,'grey',linewidth=2*(100/dpi),label='0.1*Pnb [MW]',where='mid')
+    plt.grid(linewidth=0.5*(100/dpi))
+    plt.legend(loc='upper left',fontsize=7.5*(100/dpi),frameon=False)
+    plt.xlim([-0.1 * plot_length - 0.2, 0.2])
+    plt.ylim([0.1, 0.75])
+    plt.xticks(color='w')
+    """
+    
+    ##############
+    # Plotting targets/outputs of 0D parameters
+    ##############
+    alpha = 0.5
+    gaps = 0.5 * np.subtract(target_maxs, target_mins)
+    
+    # Plot βp:
+    plt.subplot(3,3,3)
+    plt.title('Response and target')
+    plt.plot(ts,env.outputs['βp'],'k',label='βp')
+    plt.plot(ts,env.targets['βp'],'b',alpha=alpha,linestyle='-',label='Target')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+
+    # Plot q95:
+    plt.subplot(3,3,6)
+    plt.plot(ts,env.outputs['q95'],'k',label='q95')
+    plt.plot(ts,env.targets['q95'],'b',alpha=alpha,linestyle='-',label='Target')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+
+    # Plot li: 
+    # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
+    plt.subplot(3,3,9)
+    plt.plot(ts,env.outputs['li'],'k',label='li')
+    plt.plot(ts,env.targets['li'],'b',alpha=alpha,linestyle='-',label='Target')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+
+    plt.show()
+
+    return
+
 
 
 if __name__ == '__main__':
@@ -260,11 +358,16 @@ if __name__ == '__main__':
     output_params0 = ['βn','q95','q0','li']
     output_params1 = ['βp','wmhd']
     output_params2 = ['βn','βp','h89','h98','q95','q0','li','wmhd']
+    dummy_params = ['Ip [MA]', 'Elon. [-]', 'Up.Tri. [-]', 'Lo.Tri. [-]', 'In.Mid. [m]', 'Out.Mid. [m]', 'Pnb1a [MW]','Pnb1b [MW]','Pnb1c [MW]']
+
 
     env = ModelTester(rl_model_path, nn_model_path, lstm_model_path, bpw_model_path,
                                target_params=target_params, target_init=target_init, 
                                input_params=input_params, input_init=input_init, 
                                output_params0=output_params0, output_params1=output_params1,
-                               output_params2=output_params2, verbose=True)
+                               output_params2=output_params2, 
+                               dummy_params=dummy_params,
+                               verbose=True)
     
     policy_noise_injection(env)
+    make_graphs(env)
