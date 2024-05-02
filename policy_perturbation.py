@@ -199,14 +199,16 @@ class ModelTester:
         if self.first:
             self.first = False
 
-    def get_action(self, state, noise=False, sigma=1.):
+    def get_action(self, noise=False, sigma=1.):
+        # state passed in implicitly with histories
         # Predict based upon given state
         observation = np.zeros_like(self.low_state)
         for i in range(self.lookback):
             observation[i * len(self.histories[0]) : (i + 1) * len(self.histories[0])] = self.histories[i]
         
         # get current state values (list of 3 elements in order of  Bp, q95, l_i) along with previous actions as input
-        observation[self.lookback * len(self.histories[0]) :] = state
+        # observation[self.lookback * len(self.histories[0]) :] = state
+        observation[self.lookback * len(self.histories[0]) :] = [self.targets[self.target_params[i]][-1] for i in [0, 1, 2]]
         self.new_action = self.model.predict(observation, yold=self.new_action)
 
         # TODO PERTURB ACTION with noise
@@ -226,19 +228,15 @@ class ModelTester:
     
     def control_1s(self):
         for i in range(10):
-            # gets current state
-            cur_state = self.get_state() 
             # get action based upon the current predicted state
-            self.get_action(cur_state, noise=False)
+            self.get_action(noise=False)
             # take a step to get next state (current action is updated as class variable)
             self.step()
  
-
     def initialize_tokamak(self):
         # current state is initial target
-        cur_state = copy.deepcopy(self.target_init)
         # run through RL model
-        self.get_action(cur_state)
+        self.get_action()
         # take a step to get next state (current action is updated as class variable)
         self.step()
 
@@ -248,10 +246,8 @@ class ModelTester:
         self.initialize_tokamak()
         # get action using RL policy
         for i in range(noisy_iters):
-            # gets current state
-            cur_state = self.get_state()
             # get action based upon the current predicted state
-            self.get_action(cur_state, noise=True, sigma=sigma)
+            self.get_action(noise=True, sigma=sigma)
             # take a step to get next state (current action is updated as class variable)
             self.step()
 
@@ -331,7 +327,7 @@ def make_graphs(env):
     # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
     plt.subplot(3,1,3)
     plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
-    # plt.ylim([target_mins[2] - gaps[2], target_maxs[2] + gaps[2]])
+    plt.ylim([target_mins[2] - gaps[2], target_maxs[2] + gaps[2]])
     plt.plot(ts,env.outputs['li'],'k',label='li')
     plt.plot(ts,env.targets['li'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
@@ -381,8 +377,8 @@ if __name__ == '__main__':
                                dummy_params=dummy_params,
                                verbose=True)
     
-    # add noise to actions for 5 iterations (0.5 seconds)
+    # add noise to actions for 10 iterations (1. seconds)
     # let policy play out afterwards for total time seconds
-    env.policy_noise_injection(noisy_iters=0, total_time=3, sigma=1.)
+    env.policy_noise_injection(noisy_iters=10, total_time=3, sigma=1.)
 
     make_graphs(env)
