@@ -62,12 +62,12 @@ class ModelTester:
 
 
     def load_sim(self, nn_model_path, lstm_model_path, bpw_model_path,
-                 max_models=10, verbose=False):
+                 num_models=1, verbose=False):
         if verbose:
             print('Loading simulator...')
         self.kstar_nn = kstar_nn(model_path=nn_model_path, n_models=1)
-        self.kstar_lstm = kstar_v220505(model_path=lstm_model_path, n_models=max_models)
-        self.bpw_nn = bpw_nn(model_path=bpw_model_path, n_models=max_models)
+        self.kstar_lstm = kstar_v220505(model_path=lstm_model_path, n_models=num_models)
+        self.bpw_nn = bpw_nn(model_path=bpw_model_path, n_models=num_models)
         if verbose:
             print('Done.')
 
@@ -199,7 +199,7 @@ class ModelTester:
         if self.first:
             self.first = False
 
-    def get_action(self, state, noise=True, sigma=1.):
+    def get_action(self, state, noise=False, sigma=1.):
         # Predict based upon given state
         observation = np.zeros_like(self.low_state)
         for i in range(self.lookback):
@@ -224,22 +224,40 @@ class ModelTester:
         s_prime = [self.outputs['βp'][-1], self.outputs['q95'][-1], self.outputs['li'][-1]]
         return s_prime
     
-    def policy_noise_injection(self, noisy_iters=3, total_iters=10, sigma=1.):
-        print(f"Running RL policy and simulator {total_iters} times...")
-        # get action using RL policy
-        cur_state = copy.deepcopy(self.target_init)
-        noise=True
-        for i in range(total_iters):
-            if i >= noisy_iters:
-                noise = False
-
+    def control_1s(self):
+        for i in range(10):
+            # gets current state
+            cur_state = self.get_state() 
             # get action based upon the current predicted state
-            self.get_action(cur_state, noise=noise, sigma=sigma)
+            self.get_action(cur_state, noise=False)
             # take a step to get next state (current action is updated as class variable)
             self.step()
-            # gets next state
-            cur_state = self.get_state()
+ 
 
+    def initialize_tokamak(self):
+        # current state is initial target
+        cur_state = copy.deepcopy(self.target_init)
+        # run through RL model
+        self.get_action(cur_state)
+        # take a step to get next state (current action is updated as class variable)
+        self.step()
+
+    def policy_noise_injection(self, noisy_iters=3, total_time=4., sigma=1.):
+        print(f"Running RL policy and simulator ~{total_time} seconds...")
+        # intialize control for 0.1 second
+        self.initialize_tokamak()
+        # get action using RL policy
+        for i in range(noisy_iters):
+            # gets current state
+            cur_state = self.get_state()
+            # get action based upon the current predicted state
+            self.get_action(cur_state, noise=True, sigma=sigma)
+            # take a step to get next state (current action is updated as class variable)
+            self.step()
+
+        # control for total_time seconds second without noise
+        for t in range(total_time):
+            self.control_1s()
         # print actions (code calls these inputs)
         print("inputs: ")
         print(self.inputs)
@@ -293,6 +311,8 @@ def make_graphs(env):
     # Plot βp:
     plt.subplot(3,1,1)
     plt.title('Response and target')
+    plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
+    plt.ylim([target_mins[0] - gaps[0], target_maxs[0] + gaps[0]])
     plt.plot(ts,env.outputs['βp'],'k',label='βp')
     plt.plot(ts,env.targets['βp'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
@@ -300,6 +320,8 @@ def make_graphs(env):
 
     # Plot q95:
     plt.subplot(3,1,2)
+    plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
+    plt.ylim([target_mins[1] - gaps[1], target_maxs[1] + gaps[1]])
     plt.plot(ts,env.outputs['q95'],'k',label='q95')
     plt.plot(ts,env.targets['q95'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
@@ -308,10 +330,15 @@ def make_graphs(env):
     # Plot li: 
     # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
     plt.subplot(3,1,3)
+    plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
+    # plt.ylim([target_mins[2] - gaps[2], target_maxs[2] + gaps[2]])
     plt.plot(ts,env.outputs['li'],'k',label='li')
     plt.plot(ts,env.targets['li'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
+    plt.xlabel('Relative time [s]')
+
     plt.legend(loc='upper left',frameon=False)
+
 
     plt.show()
 
@@ -339,9 +366,7 @@ if __name__ == '__main__':
     input_init = [0.5,1.8,0.33, 1.5, 1.5, 0.5, 0.0,0.0,0.0,0.0, 1.32, 2.22,1.7,0.3,0.75]
 
     target_params = ['βp','q95','li']
-    target_init   = [1.45, 5.5, 0.925]
-
-    # output parameters used (output params 0 is output of simulator)
+    target_init   = [1.45,5.5,0.925]    # output parameters used (output params 0 is output of simulator)
     output_params0 = ['βn','q95','q0','li']
     output_params1 = ['βp','wmhd']
     output_params2 = ['βn','βp','h89','h98','q95','q0','li','wmhd']
@@ -356,6 +381,8 @@ if __name__ == '__main__':
                                dummy_params=dummy_params,
                                verbose=True)
     
-    # add noise to actions for 5 iterations (0.5 seconds) and let policy play out afterwards
-    env.policy_noise_injection(noisy_iters=5, total_iters=10, sigma=1.)
+    # add noise to actions for 5 iterations (0.5 seconds)
+    # let policy play out afterwards for total time seconds
+    env.policy_noise_injection(noisy_iters=0, total_time=3, sigma=1.)
+
     make_graphs(env)
