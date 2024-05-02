@@ -10,22 +10,7 @@ from matplotlib import pyplot as plt
 from common.model_structure import *
 from common.wall import *
 from common.setting import *
-
-
-### Needed for graphing:
-
-# (under "RL setting" in original script)
-low_target  = [1.0, 4.0]
-high_target = [2.0, 7.0]
-target_mins, target_maxs = low_target, high_target
-
-# (under "Setting" in original script)
-dpi = 1
-decimals = np.log10(1000)
-
-
-def i2f(i,decimals=decimals):
-    return float(i/10**decimals)
+import copy
 
 
 class ModelTester:
@@ -37,7 +22,8 @@ class ModelTester:
         # kstar_lstm
         self.load_sim(nn_model_path, lstm_model_path, bpw_model_path, verbose=verbose)
         self.targets = {}
-
+        self.target_params = target_params
+        self.target_init = target_init
         # originally targetSliderDict in rt_control
         for i, target_param in enumerate(target_params):
             self.targets[target_param] = [target_init[i], target_init[i]]
@@ -194,15 +180,15 @@ class ModelTester:
                 self.dummy[p][0] = i2f(self.inputSliderDict[p].value())
             self.dummy[p].append(i2f(self.inputSliderDict[p].value()))
         """
+        # update targets list
         if not self.first:
             for i,target_param in enumerate(target_params):
                 if len(self.targets[target_param]) >= self.plot_length:
                     del self.targets[target_param][0]
                 elif len(self.targets[target_param]) == 1:
-                    self.targets[target_param][0] = self.outputs[target_param][-1]
+                    self.targets[target_param][0] = self.targets[target_param][-1]
 
-                print(target_param)
-                self.targets[target_param].append(self.outputs[target_param][-1])
+                self.targets[target_param].append(self.targets[target_param][-1])
 
 
         # Update histories based on action and predicted outputs
@@ -233,9 +219,39 @@ class ModelTester:
         for i, idx in enumerate(idx_convert):
             # add to simulator inputs 
             self.inputs[self.input_params[idx]] = self.new_action[i] + noise[i]
+    def get_state(self):
+        # returns 'βp','q95','li'
+        s_prime = [self.outputs['βp'][-1], self.outputs['q95'][-1], self.outputs['li'][-1]]
+        return s_prime
+    
+    def policy_noise_injection(self, noisy_iters=3, total_iters=10, sigma=1.):
+        print(f"Running RL policy and simulator {total_iters} times...")
+        # get action using RL policy
+        cur_state = copy.deepcopy(self.target_init)
+        noise=True
+        for i in range(total_iters):
+            if i >= noisy_iters:
+                noise = False
+
+            # get action based upon the current predicted state
+            self.get_action(cur_state, noise=noise, sigma=sigma)
+            # take a step to get next state (current action is updated as class variable)
+            self.step()
+            # gets next state
+            cur_state = self.get_state()
+
+        # print actions (code calls these inputs)
+        print("inputs: ")
+        print(self.inputs)
+
+        # print states (includes history)
+        print("outputs: ")
+        print(self.outputs)
 
 
-def policy_noise_injection(env):
+def make_graphs(env):
+    # making basic graphs for now (removed limits, legends, ticks from original code)
+    # ignoring "dpi" (original code used this, but it blows up the scale of the graphs to make lines way too big)
     # bounds of state
     target_mins   = [0.8, 4.0, 0.80]
     target_maxs   = [2.1, 7.0, 1.05]
@@ -243,32 +259,6 @@ def policy_noise_injection(env):
     # bounds of action
     input_mins = [0.3,1.5,0.2,  0.0, 0.0, 0.0, 0.0,0.0,-10,-10, 1.265,2.18,1.6,0.1,0.5 ]
     input_maxs = [0.8,2.7,0.6,  1.75,1.75,1.5, 0.8,0.8, 10, 10, 1.36, 2.29,2.0,0.5,0.9 ]
-
-    print("Running RL policy and simulator...")
-    # get action using RL policy
-    env.get_action(target_init, noise=True)
-    # take a step to get next state (current action is updated as class variable)
-    env.step()
-
-
-    print("Running RL policy and simulator...")
-    # Take step again with noise
-    env.get_action(target_init, noise=True)
-    env.step()
-
-    # print actions (code calls these inputs)
-    print("env.inputs: ")
-    print(env.inputs)
-
-    # print states (includes history)
-    # can use env.outputs and env.targets for plotting code (hopefully)
-    print("env.outputs: ")
-    print(env.outputs)
-
-
-def make_graphs(env):
-    # making basic graphs for now (removed limits, legends, ticks from original code)
-    # ignoring "dpi" (original code used this, but it blows up the scale of the graphs to make lines way too big)
 
     ts = env.time[-len(env.outputs['βn']):]
 
@@ -299,9 +289,9 @@ def make_graphs(env):
     ##############
     alpha = 0.5
     gaps = 0.5 * np.subtract(target_maxs, target_mins)
-    
+    fig = plt.figure(figsize=(6,8))
     # Plot βp:
-    plt.subplot(3,3,3)
+    plt.subplot(3,1,1)
     plt.title('Response and target')
     plt.plot(ts,env.outputs['βp'],'k',label='βp')
     plt.plot(ts,env.targets['βp'],'b',alpha=alpha,linestyle='-',label='Target')
@@ -309,7 +299,7 @@ def make_graphs(env):
     plt.legend(loc='upper left',frameon=False)
 
     # Plot q95:
-    plt.subplot(3,3,6)
+    plt.subplot(3,1,2)
     plt.plot(ts,env.outputs['q95'],'k',label='q95')
     plt.plot(ts,env.targets['q95'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
@@ -317,16 +307,13 @@ def make_graphs(env):
 
     # Plot li: 
     # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
-    plt.subplot(3,3,9)
+    plt.subplot(3,1,3)
     plt.plot(ts,env.outputs['li'],'k',label='li')
     plt.plot(ts,env.targets['li'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
     plt.legend(loc='upper left',frameon=False)
 
     plt.show()
-
-    return
-
 
 
 if __name__ == '__main__':
@@ -369,5 +356,6 @@ if __name__ == '__main__':
                                dummy_params=dummy_params,
                                verbose=True)
     
-    policy_noise_injection(env)
+    # add noise to actions for 5 iterations (0.5 seconds) and let policy play out afterwards
+    env.policy_noise_injection(noisy_iters=5, total_iters=10, sigma=1.)
     make_graphs(env)
