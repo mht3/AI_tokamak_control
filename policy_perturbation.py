@@ -12,10 +12,6 @@ from common.wall import *
 from common.setting import *
 import copy
 
-
-def i2f(i,decimals=np.log10(1000)):
-    return float(i/10**decimals)
-
 class ModelTester:
     def __init__(self, rl_model_path, nn_model_path, lstm_model_path, bpw_model_path,
                  target_params, target_init, input_params, input_init,
@@ -181,8 +177,8 @@ class ModelTester:
             if len(self.dummy[p]) >= self.plot_length:
                 del self.dummy[p][0]
             elif len(self.dummy[p]) == 1:
-                self.dummy[p][0] = i2f(self.inputs[p])
-            self.dummy[p].append(i2f(self.inputs[p]))
+                self.dummy[p][0] = self.inputs[p]
+            self.dummy[p].append(self.inputs[p])
         
 
         # update targets list
@@ -259,7 +255,7 @@ class ModelTester:
         # control for total_time seconds second without noise
         for t in range(total_time):
             self.control_1s()
-        # print actions (code calls these inputs)
+        # print actions (code calls these inputs as in inputs to lstm simulator)
         print("inputs: ")
         print(self.inputs)
 
@@ -271,7 +267,7 @@ class ModelTester:
 def make_graphs(env):
     # making basic graphs for now (removed limits, legends, ticks from original code)
     # ignoring "dpi" (original code used this, but it blows up the scale of the graphs to make lines way too big)
-    # bounds of state
+    # bounds of targets/ main part of state
     target_mins   = [0.8, 4.0, 0.80]
     target_maxs   = [2.1, 7.0, 1.05]
 
@@ -280,12 +276,6 @@ def make_graphs(env):
     input_maxs = [0.8,2.7,0.6,  1.75,1.75,1.5, 0.8,0.8, 10, 10, 1.36, 2.29,2.0,0.5,0.9 ]
 
     ts = env.time[-len(env.outputs['βn']):]
-
-    #print("env.outputs['βn']: ", env.outputs['βn'])
-    #print("env.time: ", env.time)
-    #print("ts: ", ts)
-    #print("env.outputs['βp']: ", env.outputs['βp'])
-    #print("env.dummy: ", env.dummy)
 
     ##############
     # Plotting operation trajectory
@@ -298,10 +288,10 @@ def make_graphs(env):
     plt.plot(ts,env.dummy['Ip [MA]'],'k',label='Ip [MA]')
     plt.step(ts,0.1*pnb,'grey',label='0.1*Pnb [MW]',where='mid')
     plt.grid()
-    plt.legend(loc='upper left',frameon=False)
-    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
-    #plt.ylim([0.1, 0.75])
-    #plt.xticks(color='w')
+    plt.legend(loc='upper right', frameon=False)
+    plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
+    # plt.ylim([0.1, 0.75])
+    plt.xticks(color='w')
 
 
     # Plot Elon-1, Up. Tri. Lo. Tri.
@@ -310,10 +300,10 @@ def make_graphs(env):
     plt.plot(ts,env.dummy['Up.Tri. [-]'],'lightgrey',label='Up.Tri.')
     plt.plot(ts,env.dummy['Lo.Tri. [-]'],'grey',label='Lo.Tri.')
     plt.grid()
-    plt.legend(loc='upper left',frameon=False)
-    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
-    #plt.ylim([0.15, 1])
-    #plt.xticks(color='w')
+    plt.legend(loc='upper right',frameon=False)
+    plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
+    # plt.ylim([0.15, 1])
+    plt.xticks(color='w')
 
 
     # Plot In. Gap, Out. Gap
@@ -321,9 +311,9 @@ def make_graphs(env):
     plt.plot(ts,np.array(env.dummy['In.Mid. [m]']) - 1.265,'k',label='In.Gap [m]')
     plt.plot(ts,2.316 - np.array(env.dummy['Out.Mid. [m]']),'grey',label='Out.Gap [m]')
     plt.grid()
-    plt.legend(loc='upper left',frameon=False)
-    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
-    #plt.ylim([0, 0.14])
+    plt.legend(loc='upper right',frameon=False)
+    plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
+    # plt.ylim([0, 0.14])
     plt.xlabel('Relative time [s]')
 
     
@@ -343,7 +333,7 @@ def make_graphs(env):
     plt.plot(ts,env.outputs['βp'],'k',label='βp')
     plt.plot(ts,env.targets['βp'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
-    plt.legend(loc='upper left',frameon=False)
+    plt.legend(loc='upper right',frameon=False)
 
     # Plot q95:
     plt.subplot(3,2,4)
@@ -352,7 +342,7 @@ def make_graphs(env):
     plt.plot(ts,env.outputs['q95'],'k',label='q95')
     plt.plot(ts,env.targets['q95'],'b',alpha=alpha,linestyle='-',label='Target')
     plt.grid()
-    plt.legend(loc='upper left',frameon=False)
+    plt.legend(loc='upper right',frameon=False)
 
     # Plot li: 
     # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
@@ -364,7 +354,7 @@ def make_graphs(env):
     plt.grid()
     plt.xlabel('Relative time [s]')
 
-    plt.legend(loc='upper left',frameon=False)
+    plt.legend(loc='upper right',frameon=False)
 
 
     plt.show()
@@ -410,6 +400,6 @@ if __name__ == '__main__':
     
     # add noise to actions for 10 iterations (1. seconds)
     # let policy play out afterwards for total time seconds
-    env.policy_noise_injection(noisy_iters=10, total_time=3, sigma=1.)
+    env.policy_noise_injection(noisy_iters=10, total_time=3, sigma=0.5)
 
     make_graphs(env)
