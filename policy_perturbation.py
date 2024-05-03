@@ -13,6 +13,9 @@ from common.setting import *
 import copy
 
 
+def i2f(i,decimals=np.log10(1000)):
+    return float(i/10**decimals)
+
 class ModelTester:
     def __init__(self, rl_model_path, nn_model_path, lstm_model_path, bpw_model_path,
                  target_params, target_init, input_params, input_init,
@@ -171,15 +174,17 @@ class ModelTester:
             elif len(self.outputs[output_param]) == 1:
                 self.outputs[output_param][0] = y[i]
             self.outputs[output_param].append(y[i])
-        """
+
+        
         # Store dummy parameters
         for p in dummy_params:
             if len(self.dummy[p]) >= self.plot_length:
                 del self.dummy[p][0]
             elif len(self.dummy[p]) == 1:
-                self.dummy[p][0] = i2f(self.inputSliderDict[p].value())
-            self.dummy[p].append(i2f(self.inputSliderDict[p].value()))
-        """
+                self.dummy[p][0] = i2f(self.inputs[p])
+            self.dummy[p].append(i2f(self.inputs[p]))
+        
+
         # update targets list
         if not self.first:
             for i,target_param in enumerate(target_params):
@@ -278,34 +283,60 @@ def make_graphs(env):
 
     #print("env.outputs['βn']: ", env.outputs['βn'])
     #print("env.time: ", env.time)
-    print("ts: ", ts)
-    print("env.outputs['βp']: ", env.outputs['βp'])
-    print("env.dummy: ", env.dummy)
+    #print("ts: ", ts)
+    #print("env.outputs['βp']: ", env.outputs['βp'])
+    #print("env.dummy: ", env.dummy)
 
     ##############
     # Plotting operation trajectory
     ##############
-    """
-    plt.subplot(3,3,2)
+    
+    # Plot Ip, Pnb
+    plt.subplot(3,2,1)
     pnb = np.sum([env.dummy['Pnb1a [MW]'], env.dummy['Pnb1b [MW]'], env.dummy['Pnb1c [MW]']], axis=0)
     plt.title('AI operation trajectory')
-    plt.plot(ts,env.dummy['Ip [MA]'],'k',linewidth=2*(100/dpi),label='Ip [MA]')
-    plt.step(ts,0.1*pnb,'grey',linewidth=2*(100/dpi),label='0.1*Pnb [MW]',where='mid')
-    plt.grid(linewidth=0.5*(100/dpi))
-    plt.legend(loc='upper left',fontsize=7.5*(100/dpi),frameon=False)
-    plt.xlim([-0.1 * plot_length - 0.2, 0.2])
-    plt.ylim([0.1, 0.75])
-    plt.xticks(color='w')
-    """
+    plt.plot(ts,env.dummy['Ip [MA]'],'k',label='Ip [MA]')
+    plt.step(ts,0.1*pnb,'grey',label='0.1*Pnb [MW]',where='mid')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
+    #plt.ylim([0.1, 0.75])
+    #plt.xticks(color='w')
+
+
+    # Plot Elon-1, Up. Tri. Lo. Tri.
+    plt.subplot(3,2,3)
+    plt.plot(ts,np.array(env.dummy['Elon. [-]']) - 1,'k',label='Elon.-1')
+    plt.plot(ts,env.dummy['Up.Tri. [-]'],'lightgrey',label='Up.Tri.')
+    plt.plot(ts,env.dummy['Lo.Tri. [-]'],'grey',label='Lo.Tri.')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
+    #plt.ylim([0.15, 1])
+    #plt.xticks(color='w')
+
+
+    # Plot In. Gap, Out. Gap
+    plt.subplot(3,2,5)
+    plt.plot(ts,np.array(env.dummy['In.Mid. [m]']) - 1.265,'k',label='In.Gap [m]')
+    plt.plot(ts,2.316 - np.array(env.dummy['Out.Mid. [m]']),'grey',label='Out.Gap [m]')
+    plt.grid()
+    plt.legend(loc='upper left',frameon=False)
+    #plt.xlim([-0.1 * plot_length - 0.2, 0.2])
+    #plt.ylim([0, 0.14])
+    plt.xlabel('Relative time [s]')
+
+    
     
     ##############
     # Plotting targets/outputs of 0D parameters
     ##############
     alpha = 0.5
     gaps = 0.5 * np.subtract(target_maxs, target_mins)
-    fig = plt.figure(figsize=(6,8))
+    #fig = plt.figure(figsize=(6,8))
+
     # Plot βp:
-    plt.subplot(3,1,1)
+    plt.subplot(3,2,2)
     plt.title('Response and target')
     plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
     plt.ylim([target_mins[0] - gaps[0], target_maxs[0] + gaps[0]])
@@ -315,7 +346,7 @@ def make_graphs(env):
     plt.legend(loc='upper left',frameon=False)
 
     # Plot q95:
-    plt.subplot(3,1,2)
+    plt.subplot(3,2,4)
     plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
     plt.ylim([target_mins[1] - gaps[1], target_maxs[1] + gaps[1]])
     plt.plot(ts,env.outputs['q95'],'k',label='q95')
@@ -325,7 +356,7 @@ def make_graphs(env):
 
     # Plot li: 
     # (rt_control_v3 doesn't plot this, but v2 does. Including here for completeness)
-    plt.subplot(3,1,3)
+    plt.subplot(3,2,6)
     plt.xlim([-0.1 *env.plot_length - 0.2, 0.2])
     plt.ylim([target_mins[2] - gaps[2], target_maxs[2] + gaps[2]])
     plt.plot(ts,env.outputs['li'],'k',label='li')
