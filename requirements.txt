@@ -6,3 +6,6 @@ PyQt5-sip==12.9.0
 QtPy==1.9.0
 scipy==1.7.3
 tensorflow==2.4.1
+torch==2.2.1
+torchvision==0.17.1
+torchaudio==2.2.1

@@ -48,7 +48,7 @@ class ModelTester:
         self.input_params = input_params
         self.input_init = input_init
         # plot length (4 seconds in total)
-        self.plot_length = 40
+        self.plot_length = 80
         self.time = np.linspace(-0.1 * (self.plot_length - 1), 0, self.plot_length) # negative time enables real-time-graph in GUI, we will use same convention here
 
         # If false, an average is taken for data driven simulator outputs
@@ -227,10 +227,10 @@ class ModelTester:
         s_prime = [self.outputs['βp'][-1], self.outputs['q95'][-1], self.outputs['li'][-1]]
         return s_prime
     
-    def control_1s(self):
-        for i in range(10):
+    def control(self, iters=10, noise=False, sigma=0.5):
+        for i in range(iters):
             # get action based upon the current predicted state
-            self.get_action(noise=False)
+            self.get_action(noise=noise, sigma=sigma)
             # take a step to get next state (current action is updated as class variable)
             self.step()
  
@@ -241,27 +241,44 @@ class ModelTester:
         # take a step to get next state (current action is updated as class variable)
         self.step()
 
-    def policy_noise_injection(self, noisy_iters=3, total_time=4., sigma=1.):
-        print(f"Running RL policy and simulator ~{total_time} seconds...")
-        # intialize control for 0.1 second
-        self.initialize_tokamak()
-        # get action using RL policy
-        for i in range(noisy_iters):
-            # get action based upon the current predicted state
-            self.get_action(noise=True, sigma=sigma)
-            # take a step to get next state (current action is updated as class variable)
-            self.step()
 
-        # control for total_time seconds second without noise
-        for t in range(total_time):
-            self.control_1s()
-        # print actions (code calls these inputs as in inputs to lstm simulator)
-        print("inputs: ")
-        print(self.inputs)
+    def update_target(self, new_target):
+        for i, target_param in enumerate(self.target_params):
+            self.targets[target_param][-1] = new_target[i]
 
-        # print states (includes history)
-        print("outputs: ")
-        print(self.outputs)
+    def policy_noise_injection(self, noisy_iters=10, remaining_iters=30, sigma=0.5, targets=None):
+        print(f"Running RL policy and simulator ~{(remaining_iters + noisy_iters)/10} seconds...")
+        if targets == None:
+            # intialize control for 0.1 second
+            self.initialize_tokamak()
+        else:
+            # update target and continue with control
+            self.update_target(targets)
+
+        # get action using RL policy. add noise to actions
+        self.control(iters=noisy_iters, noise=True, sigma=sigma)
+        
+        # control for 3 seconds without noise
+        self.control(iters=remaining_iters)
+
+        # # print actions (code calls these inputs as in inputs to lstm simulator)
+        # print("inputs: ")
+        # print(self.inputs)
+
+        # # print states (includes history)
+        # print("outputs: ")
+        # print(self.outputs)
+
+    def run_noise_injection_sequence(self, targets_list=None, sigma=0.5):
+        # make sure to match total_time with plot_length
+
+        # run noise injection on initial params first
+        self.policy_noise_injection(noisy_iters=10, remaining_iters=30, sigma=sigma, targets=None)
+
+        if targets_list != None:
+            for targets in targets_list:
+                # run noise injection on initial params first
+                self.policy_noise_injection(noisy_iters=10, remaining_iters=30, sigma=0., targets=targets)
 
 
 def make_graphs(env):
@@ -291,6 +308,8 @@ def make_graphs(env):
     plt.legend(loc='upper right', frameon=False)
     plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
     # plt.ylim([0.1, 0.75])
+    # plt.ylim([-0.5, 1.5]) # larger scale
+
     plt.xticks(color='w')
 
 
@@ -303,6 +322,8 @@ def make_graphs(env):
     plt.legend(loc='upper right',frameon=False)
     plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
     # plt.ylim([0.15, 1])
+    # plt.ylim([-0.45, 1.75]) # larger scale
+
     plt.xticks(color='w')
 
 
@@ -314,10 +335,11 @@ def make_graphs(env):
     plt.legend(loc='upper right',frameon=False)
     plt.xlim([-0.1 * env.plot_length - 0.2, 0.2])
     # plt.ylim([0, 0.14])
+    # plt.ylim([-0.45, 1.25]) # larger scale
     plt.xlabel('Relative time [s]')
 
-    
-    
+
+
     ##############
     # Plotting targets/outputs of 0D parameters
     ##############
@@ -399,7 +421,9 @@ if __name__ == '__main__':
                                verbose=True)
     
     # add noise to actions for 10 iterations (1. seconds)
-    # let policy play out afterwards for total time seconds
-    env.policy_noise_injection(noisy_iters=10, total_time=3, sigma=0.5)
+    # let policy play out afterwards for remaining time seconds
+    # other targets to try besides initial target
+    targets_list = [[2.1, 7.0, 0.8]]
+    env.run_noise_injection_sequence(targets_list, sigma=0.)
 
     make_graphs(env)
