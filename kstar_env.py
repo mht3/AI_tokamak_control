@@ -43,8 +43,37 @@ class KSTAREnv(gym.Env):
 
         self.state = self.reset()
 
-    def set_state(self, state):
-        self.state = state
+    def set_state_init(self, seed, target_init=None, nb1_init=None):
+        '''
+        sets the initial state and defaults to a random initial state
+        Optionally set the state given an initial target and nb1 power.
+        '''
+        np.random.seed(seed)
+
+        # randomly initialize target state using values from table 2 in Seo et al paper
+        target_init_low = [1.1, 3.8, 0.84]
+        target_init_high = [2.1, 6.2, 1.06]
+        if target_init is None:
+            self.target_init = np.random.uniform(low=target_init_low, high=target_init_high, size=len(target_init_high))
+        else:
+            # custom initialization
+            if isinstance(target_init, np.ndarray):
+                self.target_init = target_init
+            else:
+                raise TypeError("target_init must be np.ndarray but found `{}`".format(type(target_init)))
+            
+        # randomly initialize NBI powers (Idx 3, 4, and 5 of input_params)
+        # NB1 powers min and max are shown below (from table 2 in Seo et al paper)
+        nb1_low = [1.15, 1.15, 0.45]
+        nb1_high = [1.75, 1.75, 0.6]
+
+        if nb1_init is None:
+            self.input_init[3:6] = np.random.uniform(low=nb1_low, high=nb1_high, size=len(nb1_low))
+        else:
+            if isinstance(target_init, np.ndarray):
+                self.input_init[3:6] = nb1_init
+            else:
+                raise TypeError("nb1_init must be np.ndarray but found `{}`".format(type(nb1_init)))
 
     def load_sim(self, nn_model_path, lstm_model_path, bpw_model_path, num_models=1):
         if self.verbose:
@@ -235,7 +264,9 @@ class KSTAREnv(gym.Env):
         else:
             terminated = False
         
+        # TODO: Detect if state is invalid and end episode early
         truncated = False
+
         info = {}
         return self.state, reward, terminated, truncated, info
 
@@ -249,17 +280,9 @@ class KSTAREnv(gym.Env):
         observation[self.lookback * len(self.histories[0]) :] = [self.targets[self.target_params[i]][-1] for i in [0, 1, 2]]
         return observation
 
-    def reset(self, seed=None):
-        np.random.seed(seed)
-        # randomly initialize target state (table 2 in Seo et al paper)
-        target_init_low = [1.1, 3.8, 0.84]
-        target_init_high = [2.1, 6.2, 1.06]
-        self.target_init = np.random.uniform(low=target_init_low, high=target_init_high, size=len(target_init_high))
-        # randomly initialize NBI powers (Idx 3, 4, and 5 of input_params)
-        # NB1 powers min and max are shown below (from table 2 in Seo et al paper)
-        nb1_low = [1.15, 1.15, 0.45]
-        nb1_high = [1.75, 1.75, 0.6]
-        self.input_init[3:6] = np.random.uniform(low=nb1_low, high=nb1_high, size=len(nb1_low))
+    def reset(self, seed=None, target_init=None, nb1_init=None):
+        # set initial target 0D parameters and nb1 power. target and nb1 are randomly chosen by default
+        self.set_state_init(seed, target_init, nb1_init)
 
         self.targets = {}
         # originally targetSliderDict in rt_control
