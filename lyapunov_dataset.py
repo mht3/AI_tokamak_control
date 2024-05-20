@@ -10,11 +10,16 @@ class KSTARLyapunovDataset():
         self.env = KSTAREnv()
 
         # get low and high state directly from AI gym env
+        # current state consists of (9 actions, 3 0D parameters) repeated 3 times and 
+        # finally the 3 targets. Total size is 39
         self.state_min = np.array(self.env.low_state)
         self.state_max = np.array(self.env.high_state)
 
         # scale standard deviation based on min/max values (used for adding noise)
-        self.scaled_sigma = (self.state_max - self.state_min) / 6
+        self.scaled_sigma = np.zeros_like(self.state_max)
+        # only change current 0D parameters (indices 33-35 in state)
+        self.scaled_sigma[-6:-3] = ((self.state_max - self.state_min) / 6)[-6:-3]
+    
         # how long of a trajectory to unroll (defaults to 40 0.1 second intervals which is a single episode)
         self.trajectory_length = trajectory_length
         if self.trajectory_length > 40:
@@ -128,18 +133,7 @@ class KSTARLyapunovDataset():
         flattened_data = self.convert_data(data)
         np.savez_compressed(filename, *flattened_data)
 
-    def load(self, filename):
-        loaded = np.load(filename, allow_pickle=True)
-        loaded_data = [loaded[key] for key in loaded]
-
-        states,actions,next_states = loaded_data
-        trajectories = []
-        for i in range(0, len(states), self.trajectory_length):
-            trajectory = [(states[j], actions[j], next_states[j]) for j in range(i, i + self.trajectory_length)]
-            trajectories.append(trajectory)
-        return trajectories
-
-    def convert_data(self,data):
+    def convert_data(self, data):
         flattened = []
         for trajectory in data:
             for state,action,next_state in trajectory:
@@ -147,17 +141,30 @@ class KSTARLyapunovDataset():
         all_states, all_actions, all_next_states = zip(*flattened)
         return np.array(all_states), np.array(all_actions), np.array(all_next_states)
 
+def load(filename, trajectory_length=40):
+    '''
+    Loads trajectories.npz
+    '''
+    loaded = np.load(filename, allow_pickle=True)
+    loaded_data = [loaded[key] for key in loaded]
+    states, actions, next_states = loaded_data
+    trajectories = []
+    for i in range(0, len(states), trajectory_length):
+        trajectory = [(states[j], actions[j], next_states[j]) for j in range(i, i + trajectory_length)]
+        trajectories.append(trajectory)
+    return trajectories
+
 
 if __name__ == '__main__':
-
-    dataset = KSTARLyapunovDataset(trajectory_length=4, N=50)
+    trajectory_length = 40
+    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=500)
     trajectories = dataset.build()
-    # print('##### Trajectories ######')
-    # print(len(trajectories[0]))
+    print('##### Trajectories ######')
+    print(len(trajectories[0]))
     dataset.save(trajectories)
-    # loaded_data = dataset.load('trajectories.npz')
-    # print('##### Loaded Data ######')
-    # print(len(loaded_data[0]))
+    print('##### Loaded Data ######')
+    loaded_data = load('trajectories.npz', trajectory_length)
+    print(len(loaded_data[0]))
  
 
 
