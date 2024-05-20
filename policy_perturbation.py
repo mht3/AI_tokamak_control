@@ -107,7 +107,7 @@ class ModelTester:
             x = np.zeros(17)
             idx_convert = [0,1,3,4,5,6,7,8,9,10,11,12,13,14,10,2]
             for i in range(len(x)-1):
-                x[i] = self.inputs[input_params[idx_convert[i]]]
+                x[i] = self.inputs[self.input_params[idx_convert[i]]]
             x[9], x[10] = 0.5*(x[9]+x[10]), 0.5*(x[10]-x[9])
             x[14] = 1 if x[14]>1.265+1.e-4 else 0
 
@@ -129,8 +129,8 @@ class ModelTester:
             self.x[:,:len(self.output_params0)] = y
             idx_convert = [0, 1, 2, 12, 13 ,14 ,10, 11, 3, 4, 5, 6, 10]
             for i in range(len(self.x[0]) - 1 - 4):
-                self.x[:,i+4] = self.inputs[input_params[idx_convert[i]]]
-            self.x[:, 11 + 4] += self.inputs[input_params[7]]
+                self.x[:,i+4] = self.inputs[self.input_params[idx_convert[i]]]
+            self.x[:, 11 + 4] += self.inputs[self.input_params[7]]
             self.x[:, 12 + 4] = 1 if self.x[-1, 12 + 4] > 1.265 + 1.e-4 else 0
             self.x[:, -1] = year_in
         else:
@@ -146,7 +146,7 @@ class ModelTester:
             
             self.x[:-1,:len(self.output_params0)] = self.x[1:,:len(self.output_params0)]
             self.x[-1,:len(self.output_params0)] = y
-            for i in range(len(output_params0)):
+            for i in range(len(self.output_params0)):
                 output_param = self.output_params0[i]
                 if len(self.outputs[output_param]) >= self.plot_length:
                     del self.outputs[output_param][0]
@@ -173,7 +173,7 @@ class ModelTester:
 
         
         # Store dummy parameters
-        for p in dummy_params:
+        for p in self.dummy_params:
             if len(self.dummy[p]) >= self.plot_length:
                 del self.dummy[p][0]
             elif len(self.dummy[p]) == 1:
@@ -183,7 +183,7 @@ class ModelTester:
 
         # update targets list
         if not self.first:
-            for i,target_param in enumerate(target_params):
+            for i,target_param in enumerate(self.target_params):
                 if len(self.targets[target_param]) >= self.plot_length:
                     del self.targets[target_param][0]
                 elif len(self.targets[target_param]) == 1:
@@ -222,6 +222,7 @@ class ModelTester:
         for i, idx in enumerate(idx_convert):
             # add to simulator inputs 
             self.inputs[self.input_params[idx]] = self.new_action[i] + noise[i]
+
     def get_state(self):
         # returns 'βp','q95','li'
         s_prime = [self.outputs['βp'][-1], self.outputs['q95'][-1], self.outputs['li'][-1]]
