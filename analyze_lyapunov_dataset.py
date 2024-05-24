@@ -31,14 +31,17 @@ def plot_trajectory_bounds(trajectory_index, trajectory_target, target_min, targ
     # Create a figure with three subplots
     fig, axs = plt.subplots(3, 1, figsize=(5,6))
 
-    print("trajectory_target: ", trajectory_target)
+    #print("trajectory_target: ", trajectory_target)
+    #print("target_min: ", target_min)
+    #print("target_max: ", target_max)
+
     # Plot each variable versus time in a separate subplot
-    variables = ['0D[1]', '0D[2]', '0D[3]']
+    variables = ['βp','q95','li']
     for i, ax in enumerate(axs):
         ax.plot(time, points_all[:, i], label=f'{variables[i]}')
-        ax.plot(time, np.full_like(time, trajectory_target[i]), '--', label=f'Target for this trajectory ', color='black')
-        ax.plot(time, np.full_like(time, target_min[i]), '--', label=f'Min {variables[i]}', color='r')
-        ax.plot(time, np.full_like(time, target_max[i]), '--', label=f'Max {variables[i]}', color='g')
+        ax.axhline(y=target_min[i], linestyle='--', label=f'Min {variables[i]}', color='r')
+        ax.axhline(y=target_max[i], linestyle='--', label=f'Max {variables[i]}', color='r')
+        ax.axhline(y=trajectory_target[i], linestyle='--', label=f'Trajectory Target {variables[i]}', color='black')
         ax.set_xlabel('Time')
         ax.set_ylabel(f'{variables[i]} Value')
         ax.set_title(f'{variables[i]} across trajectory {trajectory_index}')
@@ -69,11 +72,11 @@ if __name__ == '__main__':
     
     for i,trajectory in enumerate(trajectories_dataset):
         print("----------------------")
-        print("Trajectory index: ", i)
+        #print("Trajectory index: ", i)
 
         # For a single trajectory:
-        trajectory_target = trajectory[0][0][36:39]
-        print("trajectory_target: ", trajectory_target)
+        trajectory_target = np.array(trajectory[0][0][36:39]) #From first tuple >> take state >> then take state vars 36:39
+        #print("trajectory_target: ", trajectory_target)
         points_all     = []
         points_inside  = []
         points_outside = []
@@ -115,7 +118,11 @@ if __name__ == '__main__':
         print(f"num_of_tuples_outside_bounds: {len(points_outside)}")
         
         points_all = np.array(points_all)
-        plot_trajectory_bounds(i+1, trajectory_target, target_min, target_max, points_all)
+        plot_trajectory_bounds(i, trajectory_target, target_min, target_max, points_all)
 
-        #if(i>5):break
-        break
+
+        #if(len(points_outside)==0): print("no points are outside the bounds for trajectory: ", i)
+
+
+        if(i>5):break
+        #break
