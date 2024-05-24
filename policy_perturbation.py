@@ -48,7 +48,7 @@ class ModelTester:
         self.input_params = input_params
         self.input_init = input_init
         # plot length (4 seconds in total)
-        self.plot_length = 80
+        self.plot_length = 40
         self.time = np.linspace(-0.1 * (self.plot_length - 1), 0, self.plot_length) # negative time enables real-time-graph in GUI, we will use same convention here
 
         # If false, an average is taken for data driven simulator outputs
@@ -80,6 +80,7 @@ class ModelTester:
         self.high_action = [0.8,1.75,1.75,1.5,1.95, 0.5,0.85, 1.36, 2.3]
         self.low_state  = (self.low_action + self.low_target) * self.lookback + self.low_target
         self.high_state = (self.high_action + self.high_target) * self.lookback + self.high_target
+
 
         # Load agents
         if verbose:
@@ -200,7 +201,7 @@ class ModelTester:
         if self.first:
             self.first = False
 
-    def get_action(self, noise=False, sigma=1.):
+    def get_action(self, state_noise=False, action_noise=False, sigma=None):
         # state passed in implicitly with histories
         # Predict based upon given state
         observation = np.zeros_like(self.low_state)
@@ -210,12 +211,25 @@ class ModelTester:
         # get current state values (list of 3 elements in order of  Bp, q95, l_i) along with previous actions as input
         # observation[self.lookback * len(self.histories[0]) :] = state
         observation[self.lookback * len(self.histories[0]) :] = [self.targets[self.target_params[i]][-1] for i in [0, 1, 2]]
+        # add noise to state
+        scaled_sigma = np.zeros_like(self.low_state)
+        # only change current 0D parameters (indices 33-35 in state)
+        if state_noise:
+            if sigma is None:
+                scaled_sigma[-6:-3] = ((np.array(self.high_state) - np.array(self.low_state)) / 6)[-6:-3]
+            else:
+                scaled_sigma[-6:-3] = np.full(shape=3, fill_value=sigma)
+        observation += np.random.normal(0, scaled_sigma, len(observation))
         self.new_action = self.model.predict(observation, yold=self.new_action)
 
         # TODO PERTURB ACTION with noise
         idx_convert = [0, 3, 4, 5, 12, 13, 14, 10, 11]
-        if noise == True:
-            noise = np.random.normal(0, sigma, len(idx_convert))
+        if action_noise == True:
+            if sigma is None:
+                scaled_sigma = (np.array(self.high_action) - np.array(self.low_action)) / 6.
+                noise = np.random.normal(0, scaled_sigma, len(idx_convert))
+            else:
+                noise = np.random.normal(0, sigma, len(idx_convert))
         else:
             noise = np.zeros(shape=len(idx_convert))
 
@@ -228,10 +242,10 @@ class ModelTester:
         s_prime = [self.outputs['βp'][-1], self.outputs['q95'][-1], self.outputs['li'][-1]]
         return s_prime
     
-    def control(self, iters=10, noise=False, sigma=0.5):
+    def control(self, iters=10, state_noise=False, action_noise=False, sigma=None):
         for i in range(iters):
             # get action based upon the current predicted state
-            self.get_action(noise=noise, sigma=sigma)
+            self.get_action(state_noise, action_noise, sigma)
             # take a step to get next state (current action is updated as class variable)
             self.step()
  
@@ -247,7 +261,7 @@ class ModelTester:
         for i, target_param in enumerate(self.target_params):
             self.targets[target_param][-1] = new_target[i]
 
-    def policy_noise_injection(self, noisy_iters=10, remaining_iters=30, sigma=0.5, targets=None):
+    def policy_noise_injection(self, noisy_iters=10, remaining_iters=30, state_noise=False, action_noise=False, sigma=None, targets=None):
         print(f"Running RL policy and simulator ~{(remaining_iters + noisy_iters)/10} seconds...")
         if targets == None:
             # intialize control for 0.1 second
@@ -257,7 +271,7 @@ class ModelTester:
             self.update_target(targets)
 
         # get action using RL policy. add noise to actions
-        self.control(iters=noisy_iters, noise=True, sigma=sigma)
+        self.control(iters=noisy_iters, state_noise=state_noise, action_noise=action_noise, sigma=sigma)
         
         # control for 3 seconds without noise
         self.control(iters=remaining_iters)
@@ -270,16 +284,15 @@ class ModelTester:
         # print("outputs: ")
         # print(self.outputs)
 
-    def run_noise_injection_sequence(self, targets_list=None, sigma=0.5):
+    def run_noise_injection_sequence(self, targets_list=None, state_noise=False, action_noise=False, sigma=None):
         # make sure to match total_time with plot_length
 
         # run noise injection on initial params first
-        self.policy_noise_injection(noisy_iters=10, remaining_iters=30, sigma=sigma, targets=None)
+        self.policy_noise_injection(noisy_iters=10, remaining_iters=30, state_noise=state_noise, action_noise=action_noise, sigma=sigma, targets=None)
 
-        if targets_list != None:
+        if targets_list is not None:
             for targets in targets_list:
-                # run noise injection on initial params first
-                self.policy_noise_injection(noisy_iters=10, remaining_iters=30, sigma=0., targets=targets)
+                self.policy_noise_injection(noisy_iters=10, remaining_iters=30, targets=targets)
 
 
 def make_graphs(env):
@@ -421,10 +434,9 @@ if __name__ == '__main__':
                                dummy_params=dummy_params,
                                verbose=True)
     
-    # add noise to actions for 10 iterations (1. seconds)
+    # add noise to states and/or actions for 10 iterations (1. seconds)
     # let policy play out afterwards for remaining time seconds
     # other targets to try besides initial target
-    targets_list = [[2.1, 7.0, 0.8]]
-    env.run_noise_injection_sequence(targets_list, sigma=0.)
+    env.run_noise_injection_sequence(state_noise=False, action_noise=True, sigma=0.5)
 
     make_graphs(env)

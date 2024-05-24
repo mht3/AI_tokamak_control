@@ -8,8 +8,6 @@ Not using lookback from the state variable (just current state)
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-
 ## copied from "generate_lyapunov_dataset.py"
 def load(filename, trajectory_length=40):
     '''
@@ -65,7 +63,7 @@ if __name__ == '__main__':
     
 
     ### Load the dataset from file
-    trajectories_dataset = load('trajectories.npz')
+    trajectories_dataset = load('trajectories_no_noise.npz')
     #print(f"Total number of trajectories {len(trajectories_dataset)}")
     #print(f"Length of first trajectory: {len(trajectories_dataset[0])}")
     

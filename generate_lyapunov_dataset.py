@@ -6,7 +6,7 @@ import torch
 
 class KSTARLyapunovDataset():
 
-    def __init__(self, trajectory_length=40, N=500):
+    def __init__(self, trajectory_length=40, N=500, scaled_noise=True):
         # AI Gym environment with data-driven KSTAR simulator
         self.env = KSTAREnv()
 
@@ -19,7 +19,8 @@ class KSTARLyapunovDataset():
         # scale standard deviation based on min/max values (used for adding noise)
         self.scaled_sigma = np.zeros_like(self.state_max)
         # only change current 0D parameters (indices 33-35 in state)
-        self.scaled_sigma[-6:-3] = ((self.state_max - self.state_min) / 6)[-6:-3]
+        if scaled_noise:
+            self.scaled_sigma[-6:-3] = ((self.state_max - self.state_min) / 6)[-6:-3]
     
         # how long of a trajectory to unroll (defaults to 40 0.1 second intervals which is a single episode)
         self.trajectory_length = trajectory_length
@@ -117,8 +118,6 @@ class KSTARLyapunovDataset():
 
         return trajectory
 
-        # return trajectory
-
     def load_initial_targets(self):
 
         # X: Nx3 numpy array of initial states
@@ -169,13 +168,13 @@ def load(filename, trajectory_length=40):
 
 if __name__ == '__main__':
     trajectory_length = 40
-    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=500)
+    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=500, scaled_noise=False)
     trajectories = dataset.build()
     print('##### Trajectories ######')
     print(len(trajectories[0]))
-    dataset.save(trajectories)
+    dataset.save(trajectories, filename='trajectories_v2.npz')
     print('##### Loaded Data ######')
-    loaded_data = load('trajectories.npz', trajectory_length)
+    loaded_data = load('trajectories_v2.npz', trajectory_length)
     print(len(loaded_data[0]))
  
 
