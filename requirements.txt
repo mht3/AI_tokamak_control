@@ -1,12 +1,12 @@
 json5==0.9.5
 matplotlib==3.5.1
-numpy==1.19.5
+numpy
 PyQt5==5.15.2
 PyQt5-sip==12.9.0
 QtPy==1.9.0
 scipy==1.7.3
-tensorflow==2.4.1
-torch==2.2.1
+tensorflow
+torch
 torchvision==0.17.1
 torchaudio==2.2.1
 gymnasium==0.29.1
