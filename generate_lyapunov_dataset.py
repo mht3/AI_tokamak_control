@@ -119,13 +119,15 @@ class KSTARLyapunovDataset():
         return trajectory
 
     def load_initial_targets(self):
-
         # X: Nx3 numpy array of initial states
         X = np.empty(shape=(self.N, 0))
         for i in range(len(self.env.low_target)):
             t_min = self.env.low_target[i]
             t_max = self.env.high_target[i]
-            x = np.random.uniform(t_min, t_max, size=(self.N, 1))
+            #x = np.random.uniform(t_min, t_max, size=(self.N, 1))
+            # Changing initial states (targets) to have 20% buffer relative to low_target and high_target
+            t_range = t_max - t_min
+            x = np.random.uniform(t_min+0.2*t_range, t_max-0.2*t_range, size=(self.N, 1))
             X = np.concatenate([X, x], axis=1)
         return X
 
@@ -168,13 +170,13 @@ def load(filename, trajectory_length=40):
 
 if __name__ == '__main__':
     trajectory_length = 40
-    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=500, scaled_noise=False)
+    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=50, scaled_noise=False)
     trajectories = dataset.build()
     print('##### Trajectories ######')
     print(len(trajectories[0]))
-    dataset.save(trajectories, filename='trajectories_v2.npz')
+    dataset.save(trajectories, filename='trajectories_buffer.npz')
     print('##### Loaded Data ######')
-    loaded_data = load('trajectories_v2.npz', trajectory_length)
+    loaded_data = load('trajectories_buffer.npz', trajectory_length)
     print(len(loaded_data[0]))
  
 

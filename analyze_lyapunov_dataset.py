@@ -63,7 +63,7 @@ if __name__ == '__main__':
     
 
     ### Load the dataset from file
-    trajectories_dataset = load('trajectories_no_noise.npz')
+    trajectories_dataset = load('trajectories_buffer.npz')
     #print(f"Total number of trajectories {len(trajectories_dataset)}")
     #print(f"Length of first trajectory: {len(trajectories_dataset[0])}")
     
