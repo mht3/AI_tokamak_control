@@ -87,25 +87,27 @@ class Trainer():
         t_loader = tqdm(enumerate(train_loader), desc='train', total=len(train_loader), leave=False)
         for batch_idx, data in t_loader:
             x, pi, x_prime = data
-
+            # error tracking control (current state - targets)
+            x_err = x[:, 33:36] - x[:, 36:39]
+            x_prime_err = x_prime[:, 33:36] - x_prime[:, 36:39]
             # zero gradients
             self.optimizer.zero_grad()
 
             # get lyapunov function and input from model
-            V_candidate, u = self.model(x)
+            V_candidate, u = self.model(x_err)
             # get lyapunov function evaluated at equilibrium point
             V_X0, u_X0 = self.model(x_0)
 
             # get loss
             if self.loss_mode == 'approx_dynamics':
                 # compute approximate f_dot and compare to true f
-                f_approx = Trainer.approx_f_value(x, x_prime, dt=0.1)
-                L_V = self.get_lie_derivative(x, V_candidate, f_approx)
+                f_approx = Trainer.approx_f_value(x_err, x_prime_err, dt=0.1)
+                L_V = self.get_lie_derivative(x_err, V_candidate, f_approx)
 
             elif self.loss_mode == 'approx_lie':
                 # compute approximate f_dot and compare to true f
-                V_candidate_prime, u_prime = self.model(x_prime)
-                L_V= Trainer.get_approx_lie_derivative(V_candidate, V_candidate_prime, dt=0.1)
+                V_candidate_prime, u_prime = self.model(x_prime_err)
+                L_V = Trainer.get_approx_lie_derivative(V_candidate, V_candidate_prime, dt=0.1)
             
             loss = self.lyapunov_loss(V_candidate, L_V, V_X0)
 
@@ -117,14 +119,12 @@ class Trainer():
 
             #### Falsifier ####
             if run_falsifier:
+                # run falsifier on full 39 state input
                 counterexamples = self.falsifier.check_lyapunov(x, V_candidate, L_V)
                 if (not (counterexamples is None)): 
                     pass
-                    # TODO: add to train_loader
+                    # TODO: append to array of counterexamples found for the whole epoch
                     # x = self.falsifier.add_counterexamples(x, counterexamples)
-                else:
-                    valid_solution = True
-                    break
 
         # return avg loss over all runs
         return total_loss / count, valid_solution
@@ -136,6 +136,8 @@ class Trainer():
         v_loader = tqdm(enumerate(val_loader), desc='val', total=len(val_loader), leave=False)
         for batch_idx, data in v_loader:
             x, pi, x_prime = data
+            x = x[:, 33:36] - x[:, 36:39]
+            x_prime = x_prime[:, 33:36] - x_prime[:, 36:39]
             # get lyapunov function and input from model
             V_candidate, u = self.model(x)
             # get lyapunov function evaluated at equilibrium point
@@ -186,7 +188,7 @@ class Trainer():
 
         return loss_list, val_loss_list
     
-def load_model(d_in=39, n_hidden=16, d_out=9):
+def load_model(d_in=3, n_hidden=16, d_out=9):
     controller = NeuralLyapunovController(d_in, n_hidden, d_out)
     return controller
 
@@ -214,26 +216,27 @@ if __name__ == '__main__':
     epochs=50
     loss_fn = LyapunovRisk(lyapunov_factor=1., lie_factor=1., equilibrium_factor=1.)
 
-    state_dim = 39
-    action_dim = 9
-
     ### Load falsifier and KSTAR environment
     if run_falsifier:
         env = KSTAREnv()
-        falsifier = Falsifier(env.low_state, env.high_state, epsilon=0., scale=0.05,
+        falsifier = Falsifier(env.low_state[33:36], env.high_state[33:36], epsilon=0., scale=0.05,
                             frequency=150, num_samples=2, env=env)
     else:
         falsifier = None
     ### Load training data ###
     print('Loading dataset...')
+    state_dim = 39
+    action_dim = 9
     lyapunov_dataset = LyapunovDataset(filename='trajectories.npz', 
                                        state_dim=state_dim, action_dim=action_dim)
 
-    # TODO: Find equilibrium for KSTAR env
-    X_0 = torch.zeros(state_dim)
+
 
     print("Training with approx dynamics loss...")
-    d_in, n_hidden, d_out = 39, 16, 9
+    d_in, n_hidden, d_out = 3, 16, 9
+
+    # 3 states for error tracking control
+    X_0 = torch.zeros(d_in)
 
     model_1 = load_model(d_in, n_hidden, d_out)
     optimizer_1 = torch.optim.Adam(model_1.parameters(), lr=lr)
@@ -243,7 +246,7 @@ if __name__ == '__main__':
                                                                      epochs=epochs, batch_size=batch_size)
 
     print("Training with approx lie derivative loss...")
-    model_2 = load_model()
+    model_2 = load_model(d_in, n_hidden, d_out)
     optimizer_2 = torch.optim.Adam(model_2.parameters(), lr=lr)
     trainer_2 = Trainer(model_2, lr, optimizer_2, loss_fn, loss_mode='approx_lie', falsifier=falsifier)
     # calculate lie derivative when system dynamics are unknown (this model compares the approximate f to the ground truth)

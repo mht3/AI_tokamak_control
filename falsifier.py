@@ -59,13 +59,17 @@ class Falsifier():
                 lb = self.lower_bound[j]
                 ub = self.upper_bound[j]
                 value = counterexample[j]
+                # TODO: Add noise to only 0D parameters close to current counterexample
                 # Determine the min and max values for each feature in the chosen counterexamples
                 min_value = torch.max(lb, value - self.scale * (value - lb))
                 max_value = torch.min(ub, value + self.scale * (ub - value))
-                
                 sample = torch.Tensor(self.num_samples, 1).uniform_(min_value, max_value)
+                # TODO: Run through RL model to get actions
+                # TODO: run through simulator to get next state
+                # TODO: Add x, pi, x' to samples
                 samples = torch.cat([samples, sample], dim=1)
             X = torch.cat((X, samples), dim=0)
+            # TODO: project x and x' back to 3D space
         return X
     
 if __name__ == '__main__':

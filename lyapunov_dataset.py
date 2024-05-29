@@ -32,6 +32,7 @@ class LyapunovDataset(Dataset):
         x = self.data[idx, :self.state_dim]
         a = self.data[idx, self.state_dim:(self.state_dim + self.action_dim)]
         x_prime = self.data[idx, -self.state_dim:]
+        
         return x, a, x_prime
         
     def __len__(self):
