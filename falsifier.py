@@ -112,8 +112,9 @@ class Falsifier():
                 sample = torch.Tensor(self.num_samples, 1).uniform_(min_value, max_value)
                 samples = torch.cat([samples, sample], dim=1)
             ### Moved these TODOs out here, since it seems like the above loop is still building the samples. Here, they are done being built for a given counterexample
+            # TODO: since 'samples' is a tensor containing only the three perturbed 0D parameters for each sample, expand 'samples' back into 39 dimensions per sample by copying the remaining 36 from 'counterexample'
             # TODO: Run through RL model to get actions
-                # For each sample (which should be a state), call 'get_action(sample)'. Store the actions in an 'actions' tensor corresponding to the 'samples' tensor
+                # For each sample (which should now be a full 39-dim state), call 'get_action(sample)'. Store the actions in an 'actions' tensor corresponding to the 'samples' tensor
             # TODO: run through simulator to get next state
                 # For each sample state: 
                 #          - Reset self.env to that state (this may require changing the env.reset() function, so that it can reset to an entire state instead of just targets/nb1?). 
