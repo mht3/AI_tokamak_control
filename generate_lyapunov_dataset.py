@@ -106,7 +106,10 @@ class KSTARLyapunovDataset():
 
         for j in range(self.trajectory_length - 1):
             # perturb state and use as next trajectory
-            x = x_prime + np.random.normal(0, self.scaled_sigma, len(x_prime))
+            if(j%5 == 0):
+                x = x_prime + np.random.normal(0, self.scaled_sigma, len(x_prime))
+            else:
+                x = x_prime
             # get action
             pi = self.get_action(x)
             # get next state
@@ -170,13 +173,13 @@ def load(filename, trajectory_length=40):
 
 if __name__ == '__main__':
     trajectory_length = 40
-    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=50, scaled_noise=False)
+    dataset = KSTARLyapunovDataset(trajectory_length=trajectory_length, N=10, scaled_noise=True)
     trajectories = dataset.build()
     print('##### Trajectories ######')
     print(len(trajectories[0]))
-    dataset.save(trajectories, filename='trajectories_buffer.npz')
+    dataset.save(trajectories, filename='trajectories_sparsenoise2.npz')
     print('##### Loaded Data ######')
-    loaded_data = load('trajectories_buffer.npz', trajectory_length)
+    loaded_data = load('trajectories_sparsenoise2.npz', trajectory_length)
     print(len(loaded_data[0]))
  
 
